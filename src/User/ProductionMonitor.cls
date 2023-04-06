@@ -1,5 +1,21 @@
 Class User.ProductionMonitor Extends %Persistent
 {
+
+ClientMethod onloadHandler() [ Language = javascript ]
+{
+zenPage.IntervalRefresh();
+myVar1 = setInterval(zenPage.IntervalRefresh,1000);
+}
+
+ClientMethod IntervalRefresh() [ Language = javascript ]
+{
+
+var table = zenPage.getComponentById('services');
+//Optional if Snapshot is used
+//table.executeQuery()
+table.refreshContents()
+}
+
 ClassMethod GetConfigItems() As %Status
 {
 	Set tStatement = ##class(%SQL.Statement).%New()
@@ -54,7 +70,8 @@ ClassMethod GetHostInfo(ByRef pInfo, ByRef pSummary) As %Status
 			#; Skip internal services
 			If (tName = "EnsLib.Testing.Service")||
 				(tName = "Ens.ManagerService")||
-				(tName = "Ens.ScheduleService") {
+				(tName = "Ens.ScheduleService")||
+				(tName ="ARESHL7MessagesIn") {
 				Continue
 			}
 
@@ -212,23 +229,57 @@ ClassMethod GetQueueInfo(ByRef pInfo, ByRef pSummary) As %Status
 		}
 		Quit:$$$ISERR(tSC)
 
-		#; find suspended messages and add to queue info
-		&sql(SELECT COUNT(*) INTO :tSusCount From Ens.MessageHeader WHERE Status = 5)
-
-		Set tName = "**Suspended Messages**"
+		
+			#; Suspended
+		Set rs = ##class(%SQL.Statement).%ExecDirect(,"SELECT  SourceConfigName ,count(SourceConfigName) as suspendnumber  From Ens.MessageHeader WHERE Status = 5 group by SourceConfigName")
+			Set n = 0
+		Set tTotal = 0
+		While rs.%Next() {
+		
+			set tSusCount=rs.suspendnumber
+			
+		Set tName = rs.SourceConfigName
 		Set tIcon = "S"
 		Set tLamp = $S(tSusCount=0:"#00FF00",1:"orange")
 		Set tType = $S(tSusCount<1:"None Suspended", tSusCount<10:"Under 10", tSusCount<50:"Under 50", tSusCount<200:"Under 200",1:"Over 200")
 
 		Set pInfo("Queue",-tSusCount,"zzz","zzz") = $LB(tName,tName,tType,tLamp,tIcon,tSusCount)
 		Set tTotal = tTotal + tSusCount
+		}
+			#;AlarmQueued 
+		Set rs = ##class(%SQL.Statement).%ExecDirect(,"SELECT  SourceConfigName,count(SourceConfigName) as AlarmQueuedCount FROM ens.messageheader WHERE targetconfigname='Ens.Alarm' and status=3 and MessageBodyClassName='Ens.AlarmRequest' and SourceConfigName !='Ens.ScheduleHandler' group by SourceConfigName" )
+		
+		While rs.%Next() {
+		
+			set tAlarmCount=rs.AlarmQueuedCount
+			
+		Set tName = rs.SourceConfigName
+		Set tIcon = "P"
+		Set tLamp = $S(tAlarmCount=0:"#00FF00",1:"orange")
+		Set tType = $S(tAlarmCount<1:"None Suspended", tAlarmCount<10:"Under 10", tAlarmCount<50:"Under 50", tAlarmCount<200:"Under 200",1:"Over 200")
 
-		Set pSummary("Queue",1) = $LB("Total Queued Messages",$FN(tTotal,","))
+		Set pInfo("Queue",-tAlarmCount,"zzz","zzz") = $LB(tName,tName,tType,tLamp,tIcon,tAlarmCount)
+		
+		
+
+		Set tTotal = tTotal + tAlarmCount
+			
+		}
+		Set pSummary("Queue",1,tSort1,tSort2,"zzz") = $LB(tID,tName,tType,tLamp,tIcon,tCount)
+			
+		
+
+
 	}
 	Catch(ex) {
 		Set tSC = ex.AsStatus()
 	}
 	Quit tSC
+}
+
+Query SuspendedMessages() As %Query(ROWSPEC = "Name:%String,Count:%Integer") [ SqlProc ]
+{
+	SELECT '(susp) ' || TargetConfigName ,count(TargetConfigName)  From Ens.MessageHeader WHERE Status = 5 group by TargetConfigName
 }
 
 ClassMethod OutputTableIncomingOutgoing(pBucket As %String = "") As %Status
@@ -243,7 +294,7 @@ ClassMethod OutputTableIncomingOutgoing(pBucket As %String = "") As %Status
 	Write "<th>Stat </th>"
 	Write "<th>AStat </th>"
 	Write "<th><b>Business Service</b></th>"	
-	Write "<th><b>Last Sucessful Message</b></th>"	
+	Write "<th><b>Last Successful<br> Message</b></th>"	
 	Write "</tr>",!
 	}
 	
@@ -252,7 +303,8 @@ ClassMethod OutputTableIncomingOutgoing(pBucket As %String = "") As %Status
 	Write "<tr>",!
 	Write "<th>Stat</th>"
 	Write "<th>AStat</th>"
-	Write "<th><b>Business Service</b></th>"		
+	Write "<th><b>Business Operation</b></th>"	
+	Write "<th><b>Last Successful <br> Message</b></th>"	
 	Write "</tr>",!
 	}
 		
@@ -284,11 +336,51 @@ ClassMethod OutputTableIncomingOutgoing(pBucket As %String = "") As %Status
 				Write "<td>",tID ,"</td>",!
 				//get last message 
 				if pBucket="BusinessService"{
-				&sql(SELECT CONVERT(VARCHAR(50),MAX(TimeCreated), 0) into :tLastMessage FROM ENS.MessageHeader H WHERE H.ID >:tIDFrom AND SourceBusinessType =1 AND SourceConfigName =:tID AND STATUS=9 )
-				Write "<td>",tLastMessage,"</td>",!}
+					if $USERNAME="UnknownUser"
+					{Write "<td>","NotLoggedIn","</td>",!}
+					else
+					{
+				set tSql="SELECT TOP 1  TimeCreated as LastMessage"
+				set tSql=tSql_" FROM Ens.MessageHeader WHERE ID IN (  SELECT TOP 1 ID FROM Ens.MessageHeader"
+            	set tSql=tSql_" WHERE SourceConfigName = '"_tID
+                set tSql=tSql_"' and TargetConfigName <>'Ens.Alert' and Status ='Completed' ORDER BY ID DESC UNION SELECT TOP 1 ID FROM Ens.MessageHeader"
+            	set tSql=tSql_" WHERE TargetConfigName = '"_tID_"' and Status ='Completed' ORDER BY ID DESC)ORDER BY ID DESC "
+ 				set tStatement = ##class(%SQL.Statement).%New("2")
+ 				set qStatus = tStatement.%Prepare(tSql)
+ 				if qStatus'=1 {write "%Prepare failed:" do $System.Status.DisplayError(qStatus) quit}
+  				set rs = tStatement.%Execute()
+  				
+				while rs.%Next() {
+				Write "<td>",rs.LastMessage,"</td>",!}
+				//Write "<td>",tSQL,"</td>",!}
+				}
+				}
+				if pBucket="BusinessOperation"{
+					
+					if $USERNAME="UnknownUser"
+					{Write "<td>","NotLoggedIn","</td>",!}
+					else
+					{
+				set tSql="SELECT TOP 1 TimeCreated as LastMessage FROM Ens.MessageHeader WHERE ID IN ( SELECT TOP 1 ID FROM Ens.MessageHeader WHERE SourceConfigName = "
+				set tSql=tSql_"'"_tID_"' "
+				set tSql=tSql_"and TargetConfigName <>'Ens.Alert' and IsError=0 and  Status ='Completed' ORDER BY ID DESC UNION SELECT TOP 1 ID FROM Ens.MessageHeader WHERE TargetConfigName = "
+				set tSql=tSql_"'"_tID_"' "
+				set tSql=tSql_"and IsError=0 and Status ='Completed' ORDER BY ID DESC)ORDER BY ID DESC "
+				
+ 				set tStatement = ##class(%SQL.Statement).%New("2")
+ 				set qStatus = tStatement.%Prepare(tSql)
+ 				if qStatus'=1 {write "LastMessageError:" do $System.Status.DisplayError(qStatus) quit}
+  				set rs = tStatement.%Execute()
+  				
+				while rs.%Next() {
+				Write "<td>",rs.LastMessage,"</td>",!}
+				//Write "<td>",tSQL,"</td>",!}
+				}
+			}
+				
 				Write "</tr>",!
 				}
-			
+				
 			}
 		}
 	}
@@ -300,6 +392,13 @@ ClassMethod OutputTablePMQ(pBucket As %String = "") As %Status
 	Set tSC = ..GetQueueInfo(.pInfo)
 	If (pBucket = "") Set pBucket = $Order(pInfo(pBucket))
 	Set tSort1 = ""
+		Write "<tr>",!
+				Write "<th>Stat </th>"
+				Write "<th><b>Name</b></th>"	
+				Write "<th><b>Queue Count</th>"	
+				Write "<th><b>Oldest Msg</th>"		
+				Write "</tr>",!	
+				Write "<tr>",!
 	For {
 		Set tSort1 = $Order(pInfo(pBucket,tSort1))
 		If (tSort1 = "") { QUIT }
@@ -318,10 +417,30 @@ ClassMethod OutputTablePMQ(pBucket As %String = "") As %Status
 				Set tIcon = $ListGet(tData,5)
 				Set tCount = $ListGet(tData,6)
 				if tCount>=1{
-				Write "<tr>",!
+			
 				Write "<td class='Lamp' style='background:",tLamp,";'>",tIcon,"</td>",!
-				Write "<td>",tID,"</td>",!
-				Write "<td style='text-align:right;' nowrap title='Number of messages in this queue'>&nbsp;",tCount,"&nbsp;</td></tr>",!
+				Write "<td class ='QueueDetails'>",tID,"</td>",!
+				Write "<td style='text-align:right;' nowrap title='Number of messages in this queue'>&nbsp;",tCount,"<br>"
+					//QueuedFrom
+				
+				w "</td>"
+				
+				w "<td>"
+				set tSql="select min(TimeCreated) as QueuedFrom From Ens.MessageHeader where TargetConfigName ='"_tID_ "' and Status='Queued'" 
+				set tStatement = ##class(%SQL.Statement).%New("2")
+				set qStatus = tStatement.%Prepare(tSql)
+				if qStatus'=1 {write "%Prepare failed:" do $System.Status.DisplayError(qStatus) quit}
+				set rs = tStatement.%Execute()
+				while rs.%Next() 
+				{
+					Write $EXTRACT(rs.QueuedFrom,0,16)
+					
+				}
+				w "</td>"
+				W "</tr>",!
+				//Get the Oldest Queue message
+				 
+				
 				}
 			}
 		}
@@ -372,7 +491,7 @@ Storage Default
 <IdLocation>^Component5976.ProductionM5A6AD</IdLocation>
 <IndexLocation>^Component5976.ProductionM5A6AI</IndexLocation>
 <StreamLocation>^Component5976.ProductionM5A6AS</StreamLocation>
-<Type>%Library.CacheStorage</Type>
+<Type>%Storage.Persistent</Type>
 }
 
 }
