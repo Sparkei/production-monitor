@@ -44,6 +44,14 @@ box-shadow:0 2px 8px 0 rgba(0,0,0,0.12);
 box-sizing: border-box;
 }
 
+.key_area {
+width: 100%;
+position: relative;
+background-color: rgb(224, 235, 235);
+box-shadow:0 2px 8px 0 rgba(0,0,0,0.12);
+box-sizing: border-box;
+}
+
 .portalLogo {
 position: relative;
 top: 0px;
@@ -56,7 +64,9 @@ height:50px;
 font-weight: bold;
 font-size: 12pt;
 }
-
+H4 {
+	display: inline;
+}
 .portalName {
 color:#000000;
 font-family: Futura,Arial,sans-serif;
@@ -79,15 +89,19 @@ top: 20px;
 		<div class="portalLogoBox">
 		<img class="portalLogo" src="portal/HealthShareLogo210x50.png" alt="HealthShare">
 		</div>
-		<div class="portalName">SRTF Interface Monitor</div>
+		<div class="portalName">Interface Monitor</div>
 		</div>
-		
-	<div id="content_area" class="content_area">		
+	<div>&nbsp;</div> 	
+<div id="KEY" class="key_area">
+ <H4>Key:</h4> <br> <i>Stat:</i> current status  <i>AStat:</i> Adapter Status Tie Server: </i> #($piece($system,":"))# <i> Status:</i> #($system.Mirror.GetStatus())#
+</div>
+<div>&nbsp;</div> 
+<div id="content_area" class="content_area">		
 <table id="services"><tr><td valign='top'>
 <table border=1>
 <caption><h4>Incoming</h4></caption>
 <script language="Cache" runat="Server">
-Set tClassname = "User.ProductionMonitor"
+Set tClassname = "Component.InterfaceMonitor.ProductionMonitor"
 Set tClassMethod = "OutputTableIncomingOutgoing"
 Set tParamBucket = "BusinessService"
 Set tReturn = $CLASSMETHOD(tClassname,tClassMethod,tParamBucket)
@@ -97,7 +111,7 @@ Write "</table>",!
 <table border=1>
 <caption><h4>Queues</h4></caption>
 <script language="Cache" runat="Server">
-Set tClassname = "User.ProductionMonitor"
+Set tClassname = "Component.InterfaceMonitor.ProductionMonitor"
 Set tClassMethod = "OutputTablePMQ"
 Set tParamBucket = ""
 Set tReturn = $CLASSMETHOD(tClassname,tClassMethod,tParamBucket)
@@ -107,14 +121,14 @@ Write "</table>",!
 <table border=1>
 <caption><h4>Outgoing</h4></caption>
 <script language="Cache" runat="Server">
-Set tClassname = "User.ProductionMonitor"
+Set tClassname = "Component.InterfaceMonitor.ProductionMonitor"
 Set tClassMethod = "OutputTableIncomingOutgoing"
 Set tParamBucket = "BusinessOperation"
 Set tReturn = $CLASSMETHOD(tClassname,tClassMethod,tParamBucket)
 Write "</table>",!
 </script>
 </td></tr></table>
-<p><i>Tie Server: </i> #($piece($system,":"))# <i> Status:</i> #($system.Mirror.GetStatus())#</p>
+
 </div><!--End content -->
 	</div> <!--End Container -->
 	
