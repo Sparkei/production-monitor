@@ -70,8 +70,8 @@ ClassMethod GetHostInfo(ByRef pInfo, ByRef pSummary) As %Status
 			#; Skip internal services
 			If (tName = "EnsLib.Testing.Service")||
 				(tName = "Ens.ManagerService")||
-				(tName = "Ens.ScheduleService")||
-				(tName ="ARESHL7MessagesIn") {
+				(tName = "Ens.ScheduleService")
+				{
 				Continue
 			}
 
