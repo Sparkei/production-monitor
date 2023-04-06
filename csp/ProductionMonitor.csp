@@ -42,6 +42,7 @@ width: 100%;
 position: relative;
 box-shadow:0 2px 8px 0 rgba(0,0,0,0.12);
 box-sizing: border-box;
+margin-bottom: 10px;
 }
 
 .key_area {
@@ -50,7 +51,17 @@ position: relative;
 background-color: rgb(224, 235, 235);
 box-shadow:0 2px 8px 0 rgba(0,0,0,0.12);
 box-sizing: border-box;
+margin-bottom: 10px;
 }
+.issueArea {
+width: 100%;
+position: relative;
+background-color: rgb(224, 235, 235);
+box-shadow:0 2px 8px 0 rgba(0,0,0,0.12);
+box-sizing: border-box;
+margin-bottom: 10px;
+}
+
 
 .portalLogo {
 position: relative;
@@ -77,6 +88,10 @@ position: absolute;
 left: 300px;
 top: 20px;
 }
+.QueueDetails{
+max-width:250px;
+word-wrap:break-word
+}
 </style>
 </style>
 </head>
@@ -89,7 +104,7 @@ top: 20px;
 		<div class="portalLogoBox">
 		<img class="portalLogo" src="portal/HealthShareLogo210x50.png" alt="HealthShare">
 		</div>
-		<div class="portalName">Interface Monitor</div>
+		<div class="portalName">SRFT Interface Monitor</div>
 		</div>
 	<div>&nbsp;</div> 	
 <div id="KEY" class="key_area">
@@ -101,7 +116,7 @@ top: 20px;
 <table border=1>
 <caption><h4>Incoming</h4></caption>
 <script language="Cache" runat="Server">
-Set tClassname = "User.ProductionMonitor"
+Set tClassname = "Component.InterfaceMonitor.ProductionMonitor"
 Set tClassMethod = "OutputTableIncomingOutgoing"
 Set tParamBucket = "BusinessService"
 Set tReturn = $CLASSMETHOD(tClassname,tClassMethod,tParamBucket)
@@ -111,7 +126,7 @@ Write "</table>",!
 <table border=1>
 <caption><h4>Queues</h4></caption>
 <script language="Cache" runat="Server">
-Set tClassname = "User.ProductionMonitor"
+Set tClassname = "Component.InterfaceMonitor.ProductionMonitor"
 Set tClassMethod = "OutputTablePMQ"
 Set tParamBucket = ""
 Set tReturn = $CLASSMETHOD(tClassname,tClassMethod,tParamBucket)
@@ -121,7 +136,7 @@ Write "</table>",!
 <table border=1>
 <caption><h4>Outgoing</h4></caption>
 <script language="Cache" runat="Server">
-Set tClassname = "User.ProductionMonitor"
+Set tClassname = "Component.InterfaceMonitor.ProductionMonitor"
 Set tClassMethod = "OutputTableIncomingOutgoing"
 Set tParamBucket = "BusinessOperation"
 Set tReturn = $CLASSMETHOD(tClassname,tClassMethod,tParamBucket)
@@ -130,6 +145,21 @@ Write "</table>",!
 </td></tr></table>
 
 </div><!--End content -->
+<div id="IssueArea" class="IssueArea">
+<H4> Known Issues </h4>
+
+<div class="boxsizingBorder">
+
+<script language="Cache" runat="server">
+ WRITE ^InterfaceMonitorNotes
+</script>
+<br>
+<a href="">Edit Monitor Notes (CHANGE URL IN CODE HERE)</a>
+ 
+
+</div>
+
+</div>
 	</div> <!--End Container -->
 	
 </body>
